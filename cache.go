@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-var kDefaultCleanInterval = 30 * time.Second
+const (
+	kDefaultCleanInterval = 30 * time.Second
+	kMaxCleanupDuration   = 50 // in milliseconds
+)
 
 type Cache struct {
 	sync.RWMutex
@@ -31,16 +34,33 @@ func (c *Cache) Set(key string, value []byte, expirations ...time.Duration) {
 
 func (c *Cache) Get(key string) ([]byte, bool) {
 	now := time.Now().UnixNano() / 1e6
+	var (
+		mayExpire bool   = false
+		result    []byte = nil
+		getit     bool   = false
+	)
 
 	c.RLock()
-	defer c.RUnlock()
-
 	if exp, ok := c.exps[key]; ok && exp <= now {
-		// TODO: we maybe need to add a clearup event
-		return nil, false
+		mayExpire = true
+	} else {
+		result, getit = c.items[key]
 	}
-	data, ok := c.items[key]
-	return data, ok
+	c.RUnlock()
+
+	if mayExpire {
+		c.Lock()
+		if exp, ok := c.exps[key]; ok && exp <= now {
+			delete(c.items, key)
+			delete(c.exps, key)
+			if IsDebug {
+				log.Printf("Lazy clean up for key=%q", key)
+			}
+		}
+		c.Unlock()
+	}
+
+	return result, getit
 }
 
 func (c *Cache) Del(key string) {
@@ -86,27 +106,31 @@ func expireSeconds(expirations []time.Duration) int64 {
 
 // This will be running inside a goroutine
 func (c *Cache) initCleanup(interval time.Duration) {
-	// TODO: add the cost threshold for cleanup iteration like redis
 	cTick := time.Tick(interval)
 	for tick := range cTick {
 		now := tick.UnixNano() / 1e6
-		var expireKeys []string
+		expireKeys, counter := 0, 0
 		c.Lock()
 		if len(c.exps) > 0 {
-			expireKeys = make([]string, 0, len(c.exps)/2)
 			for key, expire := range c.exps {
 				if expire <= now {
-					expireKeys = append(expireKeys, key)
+					delete(c.items, key)
+					delete(c.exps, key)
+					expireKeys++
+				}
+				counter++
+				if counter >= 10000 {
+					lasting := time.Now().UnixNano()/1e6 - now
+					if lasting > kMaxCleanupDuration {
+						break
+					}
+					counter = 0
 				}
 			}
 		}
-		for _, key := range expireKeys {
-			delete(c.items, key)
-			delete(c.exps, key)
-		}
 		if IsDebug {
 			log.Printf("Cache cleanup, cleaned=%d, size=%d/%d, duration=%s",
-				len(expireKeys), len(c.items), len(c.exps), time.Since(tick))
+				expireKeys, len(c.items), len(c.exps), time.Since(tick))
 		}
 		c.Unlock()
 	}
@@ -114,7 +138,7 @@ func (c *Cache) initCleanup(interval time.Duration) {
 
 func New(cleanInterval ...time.Duration) *Cache {
 	ci := kDefaultCleanInterval
-	if len(cleanInterval) > 0 && cleanInterval[0] > 10*time.Second {
+	if len(cleanInterval) > 0 && cleanInterval[0] >= 10*time.Second {
 		ci = cleanInterval[0]
 	}
 
