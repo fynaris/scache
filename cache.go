@@ -128,10 +128,10 @@ func (c *Cache) initCleanup(interval time.Duration) {
 					counter = 0
 				}
 			}
-		}
-		if IsDebug {
-			log.Printf("Cache cleanup, cleaned=%d, size=%d/%d, duration=%s",
-				expireKeys, len(c.items), len(c.exps), time.Since(tick))
+			if IsDebug && expireKeys > 0 {
+				log.Printf("Cache cleanup, cleaned=%d, size=%d/%d, duration=%s",
+					expireKeys, len(c.items), len(c.exps), time.Since(tick))
+			}
 		}
 		c.Unlock()
 	}
