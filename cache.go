@@ -112,6 +112,7 @@ func (c *Cache) initCleanup(interval time.Duration) {
 		expireKeys, counter := 0, 0
 		c.Lock()
 		if len(c.exps) > 0 {
+			// since the go map is unordered, the key would be randomized which is great
 			for key, expire := range c.exps {
 				if expire <= now {
 					delete(c.items, key)
