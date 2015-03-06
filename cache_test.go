@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"fmt"
+	"math/rand"
 	"runtime"
 	"testing"
 	"time"
@@ -40,9 +42,29 @@ func TestCacheApi(t *testing.T) {
 	}
 }
 
+func TestRandomExpire(t *testing.T) {
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	maxExpire := 60
+	start := time.Now()
+	for i := 1; i < 500000; i++ {
+		key := fmt.Sprintf("hello_%d", i)
+		expire := rnd.Intn(maxExpire) + 5
+		cache.Set(key, []byte("world"), time.Duration(int64(expire))*time.Second)
+		if i%2 == 0 {
+			if _, ok := cache.Get(key); !ok {
+				fmt.Printf("%d: %s, %d - %v, %v\n", i, key, expire, cache.items[key], cache.exps[key])
+				t.Errorf("Didn't get the value, %s", key)
+			}
+		}
+	}
+	fmt.Printf("%s\n", time.Since(start))
+	time.Sleep(90 * time.Second)
+}
+
 var cache *Cache
 
 func init() {
 	cache = New(5 * time.Second)
+	IsDebug = true
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }

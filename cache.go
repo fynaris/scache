@@ -11,7 +11,7 @@ var kDefaultCleanInterval = 30 * time.Second
 type Cache struct {
 	sync.RWMutex
 	items map[string][]byte
-	exps  map[string]int64 // in seconds
+	exps  map[string]int64 // in milliseconds
 }
 
 func (c *Cache) Set(key string, value []byte, expirations ...time.Duration) {
