@@ -1,4 +1,4 @@
-package cache
+package scache
 
 import (
 	"fmt"

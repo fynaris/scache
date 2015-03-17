@@ -1,4 +1,5 @@
-package cache
+// Package
+package scache
 
 import (
 	"log"
