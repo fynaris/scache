@@ -11,7 +11,10 @@ Basic Usage:
 	// set key/value and would be expired after 2 seconds
 	cache.Set("2", []byte("Hello World 2", 2 * time.Second)
 
-	data, ok := cache.Get("1") // ok stands for the key existing
+	if data, ok := cache.Get("1"); ok {
+		// deal with the data
+	}
+
 	cache.Del("1") // will delete the key=1
 
 	// Renew a key to be expired after 15 seconds
