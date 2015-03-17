@@ -3,8 +3,6 @@ Package scache provides a simple in-memory cache, supports concurrent access and
 
 Basic Usage:
 
-	import "github.com/mijia/scache"
-
 	// New a cache with auto clean interval set to 30 seconds
 	cache := scache.New(30 * time.Second)
 
