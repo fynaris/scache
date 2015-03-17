@@ -1,4 +1,28 @@
-// Package
+/*
+Package scache provides a simple in-memory cache, supports concurrent access and expirable key/value pairs.
+
+Basic Usage:
+
+	import "github.com/mijia/scache"
+
+	// New a cache with auto clean interval set to 30 seconds
+	cache := scache.New(30 * time.Second)
+
+	cache.Set("1", []byte("Hello World"))
+
+	// set key/value and would be expired after 2 seconds
+	cache.Set("2", []byte("Hello World 2", 2 * time.Second)
+
+	data, ok := cache.Get("1") // ok stands for the key existing
+	cache.Del("1") // will delete the key=1
+
+	// Renew a key to be expired after 15 seconds
+	cache.Renew("2", 15 * time.Second)
+
+Expired clear stragety:
+1) A key would be cleared when client calls .Get and the key is expired;
+2) A goroutine would be running to clear the expired keys and will guarantee the clear would cost less than 50 milliseconds.
+*/
 package scache
 
 import (
@@ -13,11 +37,14 @@ const (
 )
 
 type Cache struct {
+	// will lock the whole object
 	sync.RWMutex
+
 	items map[string][]byte
 	exps  map[string]int64 // in milliseconds
 }
 
+// Save a key/value pair inside cache with or without expiration
 func (c *Cache) Set(key string, value []byte, expirations ...time.Duration) {
 	expiration := expireSeconds(expirations)
 	if expiration == 0 || value == nil {
@@ -33,6 +60,8 @@ func (c *Cache) Set(key string, value []byte, expirations ...time.Duration) {
 	c.Unlock()
 }
 
+// Get data for a key: data, ok := cache.Get(...), 'ok' would be stand for the key existing.
+// If the key is expired at the moment, it would be cleared from the cache.
 func (c *Cache) Get(key string) ([]byte, bool) {
 	now := time.Now().UnixNano() / 1e6
 	var (
@@ -64,6 +93,7 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 	return result, getit
 }
 
+// Del key/value from cache
 func (c *Cache) Del(key string) {
 	c.Lock()
 	defer c.Unlock()
@@ -71,6 +101,8 @@ func (c *Cache) Del(key string) {
 	delete(c.exps, key)
 }
 
+// Renew a key/value for a new expiration time: cache.Renew("test", 0) will delete the key,
+// cache.Renew("test") will persist the key/value in the memory
 func (c *Cache) Renew(key string, expirations ...time.Duration) {
 	expiration := expireSeconds(expirations)
 	if expiration == 0 {
@@ -138,6 +170,7 @@ func (c *Cache) initCleanup(interval time.Duration) {
 	}
 }
 
+// New a cache object with a user defined clean interval, must be more than 10 seconds.
 func New(cleanInterval ...time.Duration) *Cache {
 	ci := kDefaultCleanInterval
 	if len(cleanInterval) > 0 && cleanInterval[0] >= 10*time.Second {
@@ -154,4 +187,5 @@ func New(cleanInterval ...time.Duration) *Cache {
 	return cache
 }
 
+// Debug switch on the background routine cleanning information, you can ignore this.
 var IsDebug bool = false
