@@ -37,6 +37,7 @@ const (
 	kMaxCleanupDuration   = 50 // in milliseconds
 )
 
+// Cache struct stores the key/value pairs and expiration data.
 type Cache struct {
 	// will lock the whole object
 	sync.RWMutex
@@ -45,7 +46,7 @@ type Cache struct {
 	exps  map[string]int64 // in milliseconds
 }
 
-// Save a key/value pair inside cache with or without expiration
+// Set a key/value pair inside cache with or without expiration
 func (c *Cache) Set(key string, value []byte, expirations ...time.Duration) {
 	expiration := expireSeconds(expirations)
 	if expiration == 0 || value == nil {
@@ -66,9 +67,9 @@ func (c *Cache) Set(key string, value []byte, expirations ...time.Duration) {
 func (c *Cache) Get(key string) ([]byte, bool) {
 	now := time.Now().UnixNano() / 1e6
 	var (
-		mayExpire bool   = false
-		result    []byte = nil
-		getit     bool   = false
+		result    []byte
+		mayExpire = false
+		getit     = false
 	)
 
 	c.RLock()
@@ -189,4 +190,4 @@ func New(cleanInterval ...time.Duration) *Cache {
 }
 
 // Debug switch on the background routine cleanning information, you can ignore this.
-var IsDebug bool = false
+var IsDebug = false
