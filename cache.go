@@ -22,7 +22,7 @@ Basic Usage:
 
 Expired clear stragety:
 1) A key would be cleared when client calls .Get and the key is expired;
-2) A goroutine would be running to clear the expired keys and will guarantee the clear would cost less than 50 milliseconds.
+2) A goroutine would be running to clear the expired keys and the clearing routine would only be running for less than 50 milliseconds.
 */
 package scache
 
